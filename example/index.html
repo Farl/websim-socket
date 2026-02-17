@@ -219,7 +219,9 @@
     let myColor;
     let blockCounter = 0;
 
-    const room = new WebsimSocket();
+    const room = new WebsimSocket({
+      host: "websim-socket.farl.partykit.dev",
+    });
     const statusEl = document.getElementById("status");
     const playersEl = document.getElementById("players");
     const canvasEl = document.getElementById("canvas");
