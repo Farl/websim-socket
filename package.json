@@ -26,5 +26,10 @@
   },
   "peerDependencies": {
     "partykit": "^0.0.111"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Farl/websim-socket"
+  },
+  "license": "MIT"
 }
