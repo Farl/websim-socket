@@ -22,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Inject PartyKit host
+        run: sed -i 's|__PARTYKIT_HOST__|${{ vars.PARTYKIT_HOST }}|g' example/index.html
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
