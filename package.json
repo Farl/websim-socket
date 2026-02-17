@@ -13,7 +13,7 @@
     "./server": "./dist/server/index.js"
   },
   "scripts": {
-    "dev": "partykit dev",
+    "dev": "node scripts/prepare-example.js && partykit dev --serve .site",
     "build": "tsc",
     "prepublishOnly": "npm run build"
   },
