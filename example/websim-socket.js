@@ -53,7 +53,13 @@ export class WebsimSocket {
     });
 
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Timeout")), 10000);
+      const cleanup = (err) => {
+        this._socket?.close();
+        this._socket = null;
+        reject(err);
+      };
+
+      const timeout = setTimeout(() => cleanup(new Error("Timeout")), 10000);
 
       this._socket.addEventListener("message", (event) => {
         let msg;
@@ -73,7 +79,7 @@ export class WebsimSocket {
 
       this._socket.addEventListener("error", (err) => {
         clearTimeout(timeout);
-        reject(err);
+        cleanup(err);
       });
     });
   }

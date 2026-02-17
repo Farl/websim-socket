@@ -81,8 +81,14 @@ export class WebsimSocket {
     });
 
     return new Promise<void>((resolve, reject) => {
+      const cleanup = (err: unknown) => {
+        this.socket?.close();
+        this.socket = null;
+        reject(err);
+      };
+
       const timeout = setTimeout(() => {
-        reject(new Error("WebsimSocket: initialization timed out"));
+        cleanup(new Error("WebsimSocket: initialization timed out"));
       }, 10000);
 
       this.socket!.addEventListener("message", (event: MessageEvent) => {
@@ -108,7 +114,7 @@ export class WebsimSocket {
 
       this.socket!.addEventListener("error", (err) => {
         clearTimeout(timeout);
-        reject(err);
+        cleanup(err);
       });
     });
   }
