@@ -6,75 +6,170 @@ Drop-in replacement for WebSim's `WebsimSocket` API — migrate your existing mu
 
 **[Live Demo](https://farl.github.io/websim-socket/)** — open in two tabs to see multiplayer in action.
 
-## Features
-
-- **Room State** — shared game state synchronized across all clients
-- **Presence** — per-client state (cursor position, health, etc.) owned by each client
-- **Events** — ephemeral broadcasts for sound effects, chat, etc.
-- **Presence Update Requests** — request another player to update their own state (e.g. damage)
-- **Peer Tracking** — automatic connect/disconnect notifications with username & avatar
-
-## Quick Start
+## Installation
 
 ```bash
 npm install websim-socket
 npm install partykit --save-dev
 ```
 
-### Client
+## Usage
+
+### 1. Set up the server
+
+Create a `partykit.json` in your project root:
+
+```json
+{
+  "name": "my-app",
+  "main": "node_modules/websim-socket/src/server/index.ts"
+}
+```
+
+Or if you want to customize the server, create your own entry file and re-export:
+
+```javascript
+// server.ts
+export { default } from "websim-socket/server";
+```
+
+```json
+{
+  "name": "my-app",
+  "main": "server.ts"
+}
+```
+
+### 2. Start the dev server
+
+```bash
+npx partykit dev
+```
+
+This starts a local PartyKit server on `localhost:1999`.
+
+### 3. Connect from your client
 
 ```javascript
 import { WebsimSocket } from "websim-socket";
 
 const room = new WebsimSocket({
-  host: "your-app.username.partykit.dev", // or localhost:1999 for dev
-  room: "my-room",                        // optional, defaults to URL pathname
+  host: "localhost:1999",  // use your deployed URL in production
+  room: "my-room",        // optional, defaults to URL pathname
 });
 
 await room.initialize();
-
-// Update your presence (cursor, position, etc.)
-room.updatePresence({ x: 100, y: 200 });
-
-// Update shared room state
-room.updateRoomState({ score: { team1: 5 } });
-
-// Subscribe to changes
-room.subscribePresence((presence) => { /* ... */ });
-room.subscribeRoomState((roomState) => { /* ... */ });
-
-// Broadcast ephemeral events
-room.send({ type: "explosion", x: 50, y: 50 });
-
-// Handle events
-room.onmessage = (event) => {
-  console.log(event.data.type); // "connected", "disconnected", or custom
-};
 ```
 
-### Server
-
-In your PartyKit project, re-export the server:
+### 4. Use the API
 
 ```javascript
-export { default } from "websim-socket/server";
+// --- Presence (per-player state) ---
+
+// Update your own presence
+room.updatePresence({ x: 100, y: 200, health: 99 });
+
+// Read all players' presence
+console.log(room.presence);
+// { "client-a": { x: 100, y: 200, health: 99 }, "client-b": { ... } }
+
+// Subscribe to presence changes
+const unsub = room.subscribePresence((presence) => {
+  // Called whenever any player's presence changes
+});
+unsub(); // unsubscribe when done
+
+
+// --- Room State (shared game state) ---
+
+// Update shared state (deep-merged)
+room.updateRoomState({
+  objects: {
+    "rock-1": { x: 50, y: 80 },
+  },
+});
+
+// Delete a key by setting it to null
+room.updateRoomState({
+  objects: { "rock-1": null },
+});
+
+// Subscribe to room state changes
+room.subscribeRoomState((roomState) => {
+  // Called whenever room state changes
+});
+
+
+// --- Events (ephemeral broadcasts) ---
+
+// Send an event to all players
+room.send({ type: "explosion", x: 50, y: 50 });
+
+// Send without receiving it yourself
+room.send({ type: "ping", echo: false });
+
+// Handle incoming events
+room.onmessage = (event) => {
+  switch (event.data.type) {
+    case "connected":
+      console.log(`${event.data.username} joined`);
+      break;
+    case "disconnected":
+      console.log(`${event.data.username} left`);
+      break;
+    case "explosion":
+      playSound("boom", event.data.x, event.data.y);
+      break;
+  }
+};
+
+
+// --- Presence Update Requests ---
+// Ask another player to update their own state (e.g. damage)
+
+// Client A: request damage on Client B
+room.requestPresenceUpdate("client-b-id", {
+  type: "damage",
+  amount: 10,
+});
+
+// Client B: handle the request
+room.subscribePresenceUpdateRequests((request, fromClientId) => {
+  if (request.type === "damage") {
+    const me = room.presence[room.clientId];
+    room.updatePresence({
+      health: me.health - request.amount,
+    });
+  }
+});
+
+
+// --- Peers ---
+
+// Get all connected players
+console.log(room.peers);
+// { "client-a": { username: "Guest-A1B2", avatarUrl: "..." }, ... }
+
+// Get your own info
+console.log(room.clientId);
+console.log(room.peers[room.clientId].username);
 ```
 
-Or use it directly in `partykit.json`:
-
-```json
-{
-  "main": "node_modules/websim-socket/src/server/index.ts"
-}
-```
-
-Then deploy:
+### 5. Deploy to production
 
 ```bash
 npx partykit deploy
 ```
 
-## API
+This deploys to Cloudflare and gives you a URL like `my-app.username.partykit.dev`. Update your client to use it:
+
+```javascript
+const room = new WebsimSocket({
+  host: "my-app.username.partykit.dev",
+});
+```
+
+## API Reference
 
 ```typescript
 interface WebsimSocket {
@@ -118,13 +213,13 @@ interface WebsimSocket {
 ```diff
 - const room = new WebsimSocket();
 + import { WebsimSocket } from "websim-socket";
-+ const room = new WebsimSocket({ host: "your-app.username.partykit.dev" });
++ const room = new WebsimSocket({ host: "my-app.username.partykit.dev" });
 
   await room.initialize();
   // Everything else stays the same
 ```
 
-## Development
+## Contributing
 
 ```bash
 git clone https://github.com/Farl/websim-socket.git
@@ -134,20 +229,6 @@ npm run dev
 ```
 
 Open `http://localhost:1999` for the multiplayer cursor demo. Open a second tab to test.
-
-### Deploy
-
-```bash
-npx partykit deploy
-```
-
-### Publish to npm
-
-```bash
-npm version patch   # or minor / major
-git push --tags
-# CI will publish automatically via GitHub Actions
-```
 
 ## License
 
