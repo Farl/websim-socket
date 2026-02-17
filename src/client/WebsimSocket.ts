@@ -256,7 +256,7 @@ export class WebsimSocket {
 
   private getRoomFromUrl(): string {
     if (typeof window !== "undefined") {
-      const path = window.location.pathname.replace(/^\/+/, "");
+      const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
       return path || "default";
     }
     return "default";

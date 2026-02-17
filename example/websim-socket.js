@@ -42,7 +42,7 @@ export class WebsimSocket {
 
   async initialize() {
     const host = this._options.host || window.location.host;
-    const room = this._options.room || window.location.pathname.replace(/^\/+/, "") || "default";
+    const room = this._options.room || window.location.pathname.replace(/^\/+|\/+$/g, "") || "default";
     const username = this._options.username || `Guest-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
     const avatarUrl = this._options.avatarUrl || "";
 

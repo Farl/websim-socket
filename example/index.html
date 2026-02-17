@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WebsimSocket Demo - Multiplayer Cursors</title>
+  <link rel="icon" href="data:,">
   <script type="importmap">
     {
       "imports": {
@@ -232,7 +233,7 @@
       try {
         await room.initialize();
       } catch (e) {
-        statusEl.textContent = `Connection failed: ${e.message}`;
+        statusEl.textContent = `Connection failed — run "npm run dev" locally to start the PartyKit server.`;
         return;
       }
 
