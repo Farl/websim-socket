@@ -4,6 +4,8 @@ WebSim-compatible multiplayer module backed by [PartyKit](https://www.partykit.i
 
 Drop-in replacement for WebSim's `WebsimSocket` API — migrate your existing multiplayer code by changing one import.
 
+**[Live Demo](https://farl.github.io/websim-socket/)** — open in two tabs to see multiplayer in action.
+
 ## Features
 
 - **Room State** — shared game state synchronized across all clients
@@ -25,8 +27,8 @@ npm install partykit --save-dev
 import { WebsimSocket } from "websim-socket";
 
 const room = new WebsimSocket({
-  host: "localhost:1999", // optional, defaults to localhost:1999
-  room: "my-room",       // optional, defaults to URL pathname
+  host: "your-app.username.partykit.dev", // or localhost:1999 for dev
+  room: "my-room",                        // optional, defaults to URL pathname
 });
 
 await room.initialize();
@@ -64,6 +66,12 @@ Or use it directly in `partykit.json`:
 {
   "main": "node_modules/websim-socket/src/server/index.ts"
 }
+```
+
+Then deploy:
+
+```bash
+npx partykit deploy
 ```
 
 ## API
@@ -110,7 +118,7 @@ interface WebsimSocket {
 ```diff
 - const room = new WebsimSocket();
 + import { WebsimSocket } from "websim-socket";
-+ const room = new WebsimSocket();
++ const room = new WebsimSocket({ host: "your-app.username.partykit.dev" });
 
   await room.initialize();
   // Everything else stays the same
@@ -126,6 +134,20 @@ npm run dev
 ```
 
 Open `http://localhost:1999` for the multiplayer cursor demo. Open a second tab to test.
+
+### Deploy
+
+```bash
+npx partykit deploy
+```
+
+### Publish to npm
+
+```bash
+npm version patch   # or minor / major
+git push --tags
+# CI will publish automatically via GitHub Actions
+```
 
 ## License
 
