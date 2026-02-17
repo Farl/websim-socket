@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebsimSocket Demo - Multiplayer Cursors</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "partysocket": "https://esm.sh/partysocket@1"
+      }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f0f23;
+      color: #e0e0e0;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* Player list sidebar */
+    #player-list {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: rgba(30, 30, 60, 0.9);
+      border: 1px solid rgba(100, 100, 200, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 200px;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    #player-list h3 {
+      font-size: 14px;
+      color: #8888cc;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .player-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+    .player-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .player-name { opacity: 0.9; }
+    .player-you { color: #88ccff; font-weight: 600; }
+
+    /* Chat input */
+    #chat-box {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 100;
+    }
+    #chat-input {
+      width: 300px;
+      padding: 10px 16px;
+      background: rgba(30, 30, 60, 0.9);
+      border: 1px solid rgba(100, 100, 200, 0.3);
+      border-radius: 24px;
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+      backdrop-filter: blur(10px);
+    }
+    #chat-input:focus { border-color: rgba(100, 100, 200, 0.6); }
+    #chat-input::placeholder { color: #666; }
+
+    /* Instructions */
+    #instructions {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: rgba(30, 30, 60, 0.9);
+      border: 1px solid rgba(100, 100, 200, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 12px;
+      line-height: 1.8;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      max-width: 260px;
+    }
+    #instructions h3 {
+      font-size: 14px;
+      color: #8888cc;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    kbd {
+      background: rgba(100, 100, 200, 0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* Canvas area for blocks */
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Remote cursors */
+    .remote-cursor {
+      position: fixed;
+      pointer-events: none;
+      z-index: 50;
+      transition: left 0.08s linear, top 0.08s linear;
+    }
+    .cursor-pointer {
+      width: 20px;
+      height: 20px;
+    }
+    .cursor-label {
+      position: absolute;
+      top: 22px;
+      left: 12px;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    /* Chat bubbles */
+    .chat-bubble {
+      position: fixed;
+      pointer-events: none;
+      z-index: 60;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      max-width: 200px;
+      word-wrap: break-word;
+      animation: fadeUp 3s ease-out forwards;
+      transition: left 0.08s linear, top 0.08s linear;
+    }
+    @keyframes fadeUp {
+      0% { opacity: 1; transform: translateY(0); }
+      70% { opacity: 1; }
+      100% { opacity: 0; transform: translateY(-30px); }
+    }
+
+    /* Placed blocks */
+    .block {
+      position: fixed;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      z-index: 10;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .block:hover { transform: scale(1.3); }
+
+    /* Status bar */
+    #status {
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: #666;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas"></div>
+
+  <div id="player-list">
+    <h3>Players</h3>
+    <div id="players"></div>
+  </div>
+
+  <div id="instructions">
+    <h3>Controls</h3>
+    <div><kbd>Move mouse</kbd> Share cursor position</div>
+    <div><kbd>Click</kbd> Place a colored block</div>
+    <div><kbd>Right-click block</kbd> Remove it</div>
+    <div><kbd>Click cursor</kbd> Push other player</div>
+    <div><kbd>Enter</kbd> Send chat message</div>
+  </div>
+
+  <div id="chat-box">
+    <input id="chat-input" type="text" placeholder="Type a message and press Enter..." maxlength="100" />
+  </div>
+
+  <div id="status">Connecting...</div>
+
+  <script type="module">
+    import { WebsimSocket } from "./websim-socket.js";
+
+    const COLORS = [
+      "#ff6b6b", "#ffa06b", "#ffd93d", "#6bcb77",
+      "#4d96ff", "#9b59b6", "#ff6b9d", "#00d2d3",
+    ];
+
+    let myColor;
+    let blockCounter = 0;
+
+    const room = new WebsimSocket();
+    const statusEl = document.getElementById("status");
+    const playersEl = document.getElementById("players");
+    const canvasEl = document.getElementById("canvas");
+    const chatInput = document.getElementById("chat-input");
+
+    const cursorElements = {};
+    const chatBubbles = {};
+    const blockElements = {};
+
+    async function main() {
+      try {
+        await room.initialize();
+      } catch (e) {
+        statusEl.textContent = `Connection failed: ${e.message}`;
+        return;
+      }
+
+      myColor = COLORS[Math.abs(hashCode(room.clientId)) % COLORS.length];
+      statusEl.textContent = `Connected as ${room.peers[room.clientId]?.username} (${room.clientId.slice(0, 6)})`;
+
+      // Initialize presence with position
+      room.updatePresence({ x: 0, y: 0, color: myColor });
+
+      // Render existing state
+      renderPlayers();
+      renderBlocks();
+
+      // --- Mouse tracking ---
+      document.addEventListener("mousemove", (e) => {
+        room.updatePresence({ x: e.clientX, y: e.clientY });
+      });
+
+      // --- Place blocks on click ---
+      canvasEl.addEventListener("click", (e) => {
+        const blockId = `${room.clientId}-${blockCounter++}`;
+        room.updateRoomState({
+          blocks: {
+            [blockId]: {
+              x: e.clientX - 12,
+              y: e.clientY - 12,
+              color: myColor,
+            },
+          },
+        });
+      });
+
+      // --- Remove blocks on right-click ---
+      canvasEl.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+      });
+
+      // --- Chat ---
+      chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && chatInput.value.trim()) {
+          room.send({
+            type: "chat",
+            message: chatInput.value.trim(),
+          });
+          chatInput.value = "";
+        }
+      });
+
+      // --- Subscribe to presence ---
+      room.subscribePresence((presence) => {
+        renderPlayers();
+        for (const [clientId, state] of Object.entries(presence)) {
+          if (clientId === room.clientId) continue;
+          updateRemoteCursor(clientId, state);
+        }
+      });
+
+      // --- Subscribe to room state ---
+      room.subscribeRoomState((roomState) => {
+        renderBlocks();
+      });
+
+      // --- Handle push requests ---
+      room.subscribePresenceUpdateRequests((update, fromClientId) => {
+        if (update.type === "push") {
+          const myPresence = room.presence[room.clientId];
+          room.updatePresence({
+            x: (myPresence.x || 0) + (update.dx || 0),
+            y: (myPresence.y || 0) + (update.dy || 0),
+          });
+        }
+      });
+
+      // --- Handle events ---
+      room.onmessage = (event) => {
+        const data = event.data;
+        switch (data.type) {
+          case "connected":
+            statusEl.textContent = `${data.username} joined!`;
+            renderPlayers();
+            break;
+          case "disconnected":
+            statusEl.textContent = `${data.username} left.`;
+            removeCursor(data.clientId);
+            renderPlayers();
+            break;
+          case "chat":
+            showChatBubble(data.clientId, data.message);
+            break;
+        }
+      };
+
+      // Render initial remote cursors
+      for (const [clientId, state] of Object.entries(room.presence)) {
+        if (clientId !== room.clientId) {
+          updateRemoteCursor(clientId, state);
+        }
+      }
+    }
+
+    // --- Rendering functions ---
+
+    function renderPlayers() {
+      playersEl.innerHTML = "";
+      for (const [clientId, peer] of Object.entries(room.peers)) {
+        const isMe = clientId === room.clientId;
+        const presence = room.presence[clientId] || {};
+        const color = presence.color || "#888";
+        const item = document.createElement("div");
+        item.className = "player-item";
+        item.innerHTML = `
+          <span class="player-dot" style="background: ${color}"></span>
+          <span class="player-name ${isMe ? "player-you" : ""}">${peer.username}${isMe ? " (you)" : ""}</span>
+        `;
+        playersEl.appendChild(item);
+      }
+    }
+
+    function updateRemoteCursor(clientId, state) {
+      if (!state || state.x === undefined) return;
+
+      let el = cursorElements[clientId];
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "remote-cursor";
+        const peer = room.peers[clientId];
+        const color = state.color || "#888";
+        el.innerHTML = `
+          <svg class="cursor-pointer" viewBox="0 0 24 24" fill="${color}" stroke="${color}" stroke-width="1">
+            <path d="M5 3l14 8-7 2-3 7z"/>
+          </svg>
+          <span class="cursor-label" style="background: ${color}22; color: ${color}; border: 1px solid ${color}44;">
+            ${peer?.username || clientId.slice(0, 6)}
+          </span>
+        `;
+        // Click to push
+        el.style.pointerEvents = "auto";
+        el.style.cursor = "pointer";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const dx = (Math.random() - 0.5) * 200;
+          const dy = (Math.random() - 0.5) * 200;
+          room.requestPresenceUpdate(clientId, { type: "push", dx, dy });
+        });
+        document.body.appendChild(el);
+        cursorElements[clientId] = el;
+      }
+
+      el.style.left = state.x + "px";
+      el.style.top = state.y + "px";
+    }
+
+    function removeCursor(clientId) {
+      const el = cursorElements[clientId];
+      if (el) {
+        el.remove();
+        delete cursorElements[clientId];
+      }
+      // Remove chat bubble too
+      const bubble = chatBubbles[clientId];
+      if (bubble) {
+        bubble.remove();
+        delete chatBubbles[clientId];
+      }
+    }
+
+    function renderBlocks() {
+      const blocks = room.roomState.blocks || {};
+
+      // Remove blocks that no longer exist
+      for (const id of Object.keys(blockElements)) {
+        if (!blocks[id]) {
+          blockElements[id].remove();
+          delete blockElements[id];
+        }
+      }
+
+      // Add/update blocks
+      for (const [id, block] of Object.entries(blocks)) {
+        let el = blockElements[id];
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "block";
+          el.style.background = block.color;
+          el.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            room.updateRoomState({ blocks: { [id]: null } });
+          });
+          canvasEl.appendChild(el);
+          blockElements[id] = el;
+        }
+        el.style.left = block.x + "px";
+        el.style.top = block.y + "px";
+      }
+    }
+
+    function showChatBubble(clientId, message) {
+      // Remove old bubble
+      if (chatBubbles[clientId]) {
+        chatBubbles[clientId].remove();
+      }
+
+      const presence = room.presence[clientId];
+      const peer = room.peers[clientId];
+      if (!presence) return;
+
+      const color = presence.color || "#888";
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
+      bubble.style.background = `${color}22`;
+      bubble.style.color = color;
+      bubble.style.border = `1px solid ${color}44`;
+      bubble.textContent = message;
+      document.body.appendChild(bubble);
+      chatBubbles[clientId] = bubble;
+
+      // Position near cursor
+      function updatePos() {
+        const p = room.presence[clientId];
+        if (p && bubble.parentNode) {
+          bubble.style.left = (p.x + 20) + "px";
+          bubble.style.top = (p.y - 40) + "px";
+        }
+      }
+      updatePos();
+      const interval = setInterval(updatePos, 80);
+
+      // Auto remove
+      setTimeout(() => {
+        clearInterval(interval);
+        bubble.remove();
+        if (chatBubbles[clientId] === bubble) {
+          delete chatBubbles[clientId];
+        }
+      }, 3000);
+    }
+
+    function hashCode(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return hash;
+    }
+
+    main();
+  </script>
+</body>
+</html>

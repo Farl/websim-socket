@@ -1,0 +1,30 @@
+{
+  "name": "websim-socket",
+  "version": "0.1.0",
+  "description": "WebSim-compatible multiplayer module backed by PartyKit",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./server": "./dist/server/index.js"
+  },
+  "scripts": {
+    "dev": "partykit dev",
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "partysocket": "^1.0.2"
+  },
+  "devDependencies": {
+    "partykit": "^0.0.111",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "partykit": "^0.0.111"
+  }
+}
