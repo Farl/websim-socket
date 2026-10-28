@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "websim-socket-migration",
+  "main": "src/partyserver/worker.ts",
+  "compatibility_date": "2026-10-20",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "Main",
+        "class_name": "WebsimServer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "WebsimServer"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "send_metrics": false
+}

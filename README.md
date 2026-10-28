@@ -1,3 +1,5 @@
+> PartyKit hosted service retirement: the local PartyServer candidate and rollout/data limits are documented in [docs/partyserver-migration.md](docs/partyserver-migration.md). The older PartyKit examples below are retained for reference. Production has not been migrated.
+
 # websim-socket
 
 WebSim-compatible multiplayer module backed by [PartyKit](https://www.partykit.io/).

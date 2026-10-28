@@ -1,28 +1,36 @@
 {
   "name": "websim-socket",
-  "version": "0.1.1",
-  "description": "WebSim-compatible multiplayer module backed by PartyKit",
+  "version": "0.1.2-partyserver.0",
+  "description": "WebSim-compatible multiplayer module with PartyServer and legacy PartyKit entries",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist/",
-    "src/"
+    "src/",
+    "docs/partyserver-migration.md"
   ],
   "exports": {
     ".": "./dist/index.js",
-    "./server": "./dist/server/index.js"
+    "./server": "./dist/server/index.js",
+    "./partyserver": "./dist/partyserver/index.js"
   },
   "scripts": {
     "dev": "node scripts/prepare-example.js && partykit dev --serve .site",
     "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "dev:partyserver": "wrangler dev --port 1999",
+    "test": "node --test tests/*.test.mjs",
+    "check:worker": "wrangler deploy --dry-run --outdir .worker-build"
   },
   "dependencies": {
+    "partyserver": "0.5.10",
     "partysocket": "^1.0.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20261019.1",
     "partykit": "^0.0.111",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "wrangler": "4.151.3"
   },
   "peerDependencies": {
     "partykit": "^0.0.111"

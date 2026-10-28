@@ -3,6 +3,7 @@ name: Deploy Example to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,10 +12,12 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    # Enable the host switch only after the backend passes production smoke tests.
+    if: ${{ vars.PARTYSERVER_HOST != '' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -22,8 +25,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject PartyKit host
-        run: sed -i 's|__PARTYKIT_HOST__|${{ vars.PARTYKIT_HOST }}|g' example/index.html
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+
+      - run: npm run build
+      - run: npm test
+      - run: npm run check:worker
+
+      # Cloudflare Workers Builds deploys the backend from this repository.
+
+      # Read configuration as data rather than interpolating it into shell code.
+      - name: Inject PartyServer host
+        env:
+          PARTYKIT_HOST: ${{ vars.PARTYSERVER_HOST }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const host = process.env.PARTYKIT_HOST;
+          if (!/^[a-z0-9.-]+\.workers\.dev$/.test(host)) {
+            throw new Error('PARTYSERVER_HOST must be a workers.dev hostname');
+          }
+          const file = 'example/index.html';
+          fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replaceAll('__PARTYKIT_HOST__', host));
+          NODE
 
       - uses: actions/configure-pages@v5
 
